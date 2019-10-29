@@ -32,9 +32,9 @@ SOURCES += \
         GSL/vector2d.cpp \
         GSL/vector3d.cpp \
         GSL/vector4d.cpp \
-        LAS/las2txt_normalized.cpp \
         camera.cpp \
         input.cpp \
+        main.cpp \
         mainwindow.cpp \
         octahedronball.cpp \
         renderwindow.cpp \
@@ -63,7 +63,6 @@ HEADERS += \
         input.h \
         mainwindow.h \
         octahedronball.h \
-        renderwindow.cpp.autosave \
         renderwindow.h \
         shader.h \
         texture.h \
@@ -89,7 +88,6 @@ DISTFILES += \
     Shaders/plainshader.vert \
     Shaders/textureshader.frag \
     Shaders/textureshader.vert \
-    plainfragment.frag \
-    plainvertex.vert \
     texturefragmet.frag \
-    texturevertex.vert
+    texturevertex.vert\
+    Assets/*

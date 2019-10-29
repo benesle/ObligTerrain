@@ -58,7 +58,7 @@ void Texture::readBitmap(const std::string &filename)
     OBITMAPFILEHEADER bmFileHeader;
     OBITMAPINFOHEADER bmInfoHeader;
 
-    std::string fileWithPath = "Textures/" + filename;
+    std::string fileWithPath = "../ObligTerrain/Assets/Textures/" + filename;
 
     std::ifstream file;
     file.open (fileWithPath.c_str(), std::ifstream::in | std::ifstream::binary);

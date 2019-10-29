@@ -27,6 +27,7 @@ public:
     Vector3D operator-() const;                     // -v
     Vector3D operator*(GLfloat rhs) const;          // v * f
     Vector3D operator^(const Vector3D& rhs) const; // v x v  - cross product
+    Vector3D operator/(const GLfloat rhs) const; //v/f
 
     //Functions
     GLfloat length() const;

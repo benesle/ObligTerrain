@@ -22,11 +22,7 @@
 namespace gsl
 {
 constexpr bool VERBOSE = false;
-unsigned short getCurrentYear()
-{
-    auto t = std::time(nullptr);
-    return std::localtime(&t)->tm_year + 1900;
-}
+
 
 // TODO update so both 1.2 and 1.4 will work
 // - Add 1.3 and 1.4 formats
@@ -35,6 +31,12 @@ unsigned short getCurrentYear()
 class LASLoader
 {
 public:
+
+    unsigned short getCurrentYear()
+    {
+        auto t = std::time(nullptr);
+        return std::localtime(&t)->tm_year + 1900;
+    }
     /** Standard type sizes for 32 bit compiler:
      * char = 1
      * short = 2

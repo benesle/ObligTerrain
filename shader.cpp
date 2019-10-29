@@ -3,6 +3,8 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include "matrix4x4.h"
+
 
 //#include "GL/glew.h" - using QOpenGLFunctions instead
 
@@ -116,7 +118,7 @@ Shader::Shader(const GLchar *vertexPath, const GLchar *fragmentPath, const GLcha
     if (!success)
     {
         glGetProgramInfoLog( this->program, 512, nullptr, infoLog );
-        std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
+        std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog <<"Fail Vertex "<< vertexPath << " Fail Fragment " << fragmentPath << std::endl;
     }
     // Delete the shaders as they're linked into our program now and no longer needed
     glDeleteShader( vertex );

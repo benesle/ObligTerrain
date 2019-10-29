@@ -91,7 +91,7 @@ void RenderWindow::init()
     glClearColor(0.4f, 0.4f, 0.4f, 1.0f);    //color used in glClear GL_COLOR_BUFFER_BIT
 
     //Compile shaders:
-    mShaderProgram[0] = new Shader("../ObligTerrain/Shaders/plainvertex.vert", "../ObligTerrain/Shaders/plainvertex.frag");
+    mShaderProgram[0] = new Shader("../ObligTerrain/Shaders/plainshader.vert", "../ObligTerrain/Shaders/plainshader.frag");
     qDebug() << "Plain shader program id: " << mShaderProgram[0]->getProgram();
     mShaderProgram[1]= new Shader("../ObligTerrain/Shaders/textureshader.vert", "../ObligTerrain/Shaders/textureshader.frag");
     qDebug() << "Texture shader program id: " << mShaderProgram[1]->getProgram();
@@ -102,7 +102,7 @@ void RenderWindow::init()
     setupTextureShader(1);
 
     //**********************  Texture stuff: **********************
-    mTexture[0] = new Texture("white.bmp");
+    mTexture[0] = new Texture("white.bmp",0);
     mTexture[1] = new Texture("hund.bmp", 1);
     mTexture[2] = new Texture("skybox.bmp", 2);
 
@@ -113,6 +113,114 @@ void RenderWindow::init()
     glBindTexture(GL_TEXTURE_2D, mTexture[1]->id());
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, mTexture[2]->id());
+
+
+    //*****************************************************HERE*************************************
+
+    gsl::LASLoader loader{"../ObligTerrain/1.las"};
+
+    bool flipY = true;
+
+    gsl::Vector3D min{};
+    gsl::Vector3D max{};
+    std::vector<gsl::Vector3D> terrainPoints;
+
+    terrainPoints.reserve(loader.pointCount());
+    for (auto it = loader.begin(); it != loader.end(); it = it + 10)
+    {
+        terrainPoints.emplace_back(it->xNorm(), it->zNorm(), it->yNorm());
+
+        min.x = (terrainPoints.back().x < min.x) ? terrainPoints.back().x : min.x;
+        min.y = (terrainPoints.back().y < min.y) ? terrainPoints.back().y : min.y;
+        min.z = (terrainPoints.back().z < min.z) ? terrainPoints.back().z : min.z;
+
+        max.x = (terrainPoints.back().x > max.x) ? terrainPoints.back().x : max.x;
+        max.y = (terrainPoints.back().y > max.y) ? terrainPoints.back().y : max.y;
+        max.z = (terrainPoints.back().z > max.z) ? terrainPoints.back().z : max.z;
+    }
+
+    int xGridSize{10}, zGridSize{10};
+    terrainPoints = mapToGrid(terrainPoints, xGridSize, zGridSize, min, max);
+    terrainPoints.shrink_to_fit();
+
+
+
+    mTerrainVertices.reserve(terrainPoints.size());
+    std::transform(terrainPoints.begin(), terrainPoints.end(), std::back_inserter(mTerrainVertices), [](const gsl::Vector3D& point)
+    {
+        return Vertex{(point - 0.5f) * 40.f, {0.18f, 0.33f, 0.8f}, {0, 0}};
+    });
+
+    std::cout << "Point count: " << mTerrainVertices.size() << std::endl;
+    //Make triangulation
+
+    // Create indices
+    mTerrainTriangles.reserve((xGridSize - 1) * (zGridSize - 1) * 2);
+    for (unsigned int z{0}, i{0}; z < zGridSize - 1; ++z, ++i)
+    {
+        for (unsigned int x{0}; x < xGridSize - 1; ++x, ++i)
+        {
+            mTerrainTriangles.push_back({{i, i + xGridSize, i + 1},
+                                         {
+                                             static_cast<int>(mTerrainTriangles.size()) + 1,
+                                             (z != 0) ? static_cast<int>(static_cast<int>(mTerrainTriangles.size()) - (xGridSize - 1) * 2 + 1) : -1,
+                                             (x != 0) ? static_cast<int>(mTerrainTriangles.size()) - 1 : -1
+                                         }
+                                        });
+
+            std::cout << "Added a triangle with index: " << mTerrainTriangles.back().index[0] << ", " << mTerrainTriangles.back().index[1]
+                      << ", " << mTerrainTriangles.back().index[2] << " and neighbours: " << mTerrainTriangles.back().neighbour[0]
+                      << ", " << mTerrainTriangles.back().neighbour[1] << ", " << mTerrainTriangles.back().neighbour[2] << std::endl;
+
+            mTerrainTriangles.push_back({{i + 1, i + xGridSize, i + 1 + xGridSize} ,
+                                         {
+                                             (z < zGridSize - 2) ? static_cast<int>(static_cast<int>(mTerrainTriangles.size()) + (zGridSize - 1) * 2 - 1) : -1,
+                                             (x < xGridSize - 2) ? static_cast<int>(mTerrainTriangles.size() + 1) : -1,
+                                             static_cast<int>(mTerrainTriangles.size()) - 1
+                                         }
+                                        });
+
+            std::cout << "Added a triangle with index: " << mTerrainTriangles.back().index[0] << ", " << mTerrainTriangles.back().index[1]
+                      << ", " << mTerrainTriangles.back().index[2] << " and neighbours: " << mTerrainTriangles.back().neighbour[0]
+                      << ", " << mTerrainTriangles.back().neighbour[1] << ", " << mTerrainTriangles.back().neighbour[2] << std::endl;
+        }
+
+    }
+
+    std::cout << "Triangle count: " << mTerrainTriangles.size() << std::endl;
+
+
+    glGenVertexArrays(1, &mTerrainVAO);
+    glBindVertexArray(mTerrainVAO);
+
+    GLuint terrainVBO, terrainEBO;
+    glGenBuffers(1, &terrainVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, terrainVBO);
+    glBufferData(GL_ARRAY_BUFFER, mTerrainVertices.size() * sizeof(Vertex), mTerrainVertices.data(), GL_STATIC_DRAW);
+
+
+    unsigned int *data = new unsigned int[mTerrainTriangles.size() * 3];
+    for (unsigned int i{0}; i < mTerrainTriangles.size(); ++i)
+        for (unsigned int j{0}; j < 3; ++j)
+            data[i * 3 + j] = mTerrainTriangles.at(i).index[j];
+
+    glGenBuffers(1, &terrainEBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, terrainEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mTerrainTriangles.size() * 3 * sizeof(unsigned int), data, GL_STATIC_DRAW);
+
+    delete[] data;
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)(3 * sizeof(GLfloat)));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)(6 * sizeof(GLfloat)));
+    glEnableVertexAttribArray(2);
+
+    glBindVertexArray(0);
+
+    // glPointSize(10.f);
+
 
     //********************** Making the objects to be drawn **********************
     std::string filename;
@@ -132,7 +240,7 @@ void RenderWindow::init()
     //    mPlayer = temp;
 
     //testing triangle surface class
-    temp = new TriangleSurface("box2.txt");
+    temp = new TriangleSurface("../ObligTerrain/Assets/Meshes/box2.txt");
     temp->init();
     temp->mMatrix.rotateY(180.f);
     mVisualObjects.push_back(temp);
@@ -177,6 +285,70 @@ void RenderWindow::init()
     mShaderProgram[2]->setCurrentCamera(mCurrentCamera);
 }
 
+std::vector<gsl::Vector3D> RenderWindow:: mapToGrid(const std::vector<gsl::Vector3D> &points, int gridX, int gridZ, gsl::Vector3D min, gsl::Vector3D max)
+{
+    //Make Grid, initialize it with empty points
+    std::vector<std::pair<float, unsigned int>> grid;
+    grid.resize(gridX * gridZ);
+
+
+    //For each point find the nearest point in the grid and add it.
+    for (auto point : points)
+    {
+        int closestIndex[2]{0, 0};
+        for (int z{0}; z < gridZ; ++z)
+        {
+            for (int x{0}; x < gridX; ++x)
+            {
+                //Devide points to get avrege
+                gsl::Vector3D gridPoint{
+                    x * ((max.x - min.x) / gridX) + min.x,
+                            0,
+                            z * ((max.z - min.z) / gridZ) + min.z
+                };
+
+
+                gsl::Vector3D lastClosestPoint
+                {
+                    closestIndex[0] * ((max.x - min.x) / gridX) + min.x,
+                            0,
+                            closestIndex[1] * ((max.z- min.z) / gridZ) + min.z
+                };
+
+
+                //Compare and Find the closest point
+                if ((gsl::Vector3D{point.x, 0, point.y} - gridPoint).length() < (gsl::Vector3D{point.x, 0, point.y} - lastClosestPoint).length())
+                {
+                    closestIndex[0] = x;
+                    closestIndex[1] = z;
+                }
+            }
+        }
+        // std::cout << "point is: " << point << std::endl;
+
+        //Use the last nearest point and add it to current nearest point
+        auto& p = grid.at(closestIndex[0] + closestIndex[1] * gridZ);
+
+        p.first += point.y;
+        ++p.second;
+    }
+
+    // convert pair into only first of pair
+    std::vector<gsl::Vector3D> outputs{};
+    outputs.reserve(grid.size());
+    for(int z{0}; z < gridZ; ++z)
+    {
+        for(int x{0}; x < gridX; ++x)
+        {
+            auto &p = grid.at(x + z * gridZ);
+
+            outputs.emplace_back(x *((max.x - min.x)/ gridX) + min.x, (0 < p.second) ? p.first/ static_cast<float>(p.second): 0,
+                                 z * ((max.z - min.z)/ gridZ) + min.z);
+        }
+    }
+    return outputs;
+}
+
 ///Called each frame - doing the rendering
 void RenderWindow::render()
 {
@@ -213,8 +385,20 @@ void RenderWindow::render()
     for (auto visObject: mVisualObjects)
     {
         visObject->draw();
-        //        checkForGLerrors();
+        // checkForGLerrors();
     }
+
+    gsl::Matrix4x4 mMatrix4;
+    mMatrix4.setToIdentity();
+    glUseProgram(mShaderProgram[0]->getProgram());
+    int location = glGetUniformLocation(mShaderProgram[0]->getProgram(),"mMatrix");
+    glUniformMatrix4fv(location, 1, GL_TRUE, mMatrix4.constData());
+    glUniformMatrix4fv(glGetUniformLocation(mShaderProgram[0]->getProgram(), "vMatrix"),1,GL_TRUE, mCurrentCamera->mViewMatrix.constData());
+    glUniformMatrix4fv(glGetUniformLocation(mShaderProgram[0]->getProgram(), "pMatrix"),1,GL_TRUE, mCurrentCamera->mProjectionMatrix.constData());
+    glBindVertexArray(mTerrainVAO);
+    glDrawElements(GL_TRIANGLES, mTerrainTriangles.size()*3, GL_UNSIGNED_INT, 0);
+
+
 
     //Calculate framerate before
     // checkForGLerrors() because that takes a long time
@@ -236,107 +420,7 @@ void RenderWindow::render()
 }
 
 //********************** Terrain Data **************************
-gsl::LASLoader loader{"../ObligTerrain/1.las"};
 
-bool flipY = true;
-
-gsl::Vector3D min{};
-gsl::Vector3D max{};
-std::vector<gsl::Vector3D> terrainPoint;
-
-terrainPoint.reserve(loader.pointCount());
-for (auto it = loader.begin(); it != loader.end(); it = it + 10)
-{
-    terrainPoint.emplace_back(it->xNorm(), it->zNorm(), it->yNorm());
-
-    min.x = (terrainPoint.back().x < min.x) ? terrainPoint.back().x : min.x;
-    min.y = (terrainPoint.back().y < min.y) ? terrainPoint.back().y : min.y;
-    min.z = (terrainPoint.back().z < min.z) ? terrainPoint.back().z : min.z;
-
-    max.x = (terrainPoint.back().x > max.x) ? terrainPoint.back().x : max.x;
-    max.y = (terrainPoint.back().y > max.y) ? terrainPoint.back().y : max.y;
-    max.z = (terrainPoint.back().z > max.z) ? terrainPoint.back().z : max.z;
-}
-
-int xGridSize{5}, zGridSize{5};
-terrainPoints = mapToGrid(terrainPoints, xGridSize, zGridSize, min, max);
-terrainPoints.shrink_to_fit();
-
-
-
-mTerrainVertices.reserve(terrainPoints.size());
-std::transform(terrainPoints.begin(), terrainPoints.end(), std::back_inserter(mTerrainVertices), [](const gsl::Vector3D& point){
-    return Vertex{(point - 0.5f) * 40.f, {0.18f, 0.33f, 0.8f}, {0, 0}};
-});
-
-std::cout << "Point count: " << mTerrainVertices.size() << std::endl;
-
-// Create indices
-mTerrainTriangles.reserve((xGridSize - 1) * (zGridSize - 1) * 2);
-for (unsigned int z{0}, i{0}; z < zGridSize - 1; ++z, ++i)
-{
-    for (unsigned int x{0}; x < xGridSize - 1; ++x, ++i)
-    {
-        mTerrainTriangles.push_back({{i, i + xGridSize, i + 1},
-                                     {
-                                         static_cast<int>(mTerrainTriangles.size()) + 1,
-                                         (z != 0) ? static_cast<int>(static_cast<int>(mTerrainTriangles.size()) - (xGridSize - 1) * 2 + 1) : -1,
-                                         (x != 0) ? static_cast<int>(mTerrainTriangles.size()) - 1 : -1
-                                     }
-                                    });
-
-        std::cout << "Added a triangle with index: " << mTerrainTriangles.back().index[0] << ", " << mTerrainTriangles.back().index[1]
-                  << ", " << mTerrainTriangles.back().index[2] << " and neighbours: " << mTerrainTriangles.back().neighbour[0]
-                  << ", " << mTerrainTriangles.back().neighbour[1] << ", " << mTerrainTriangles.back().neighbour[2] << std::endl;
-
-        mTerrainTriangles.push_back({{i + 1, i + xGridSize, i + 1 + xGridSize} ,
-                                     {
-                                         (z < zGridSize - 2) ? static_cast<int>(static_cast<int>(mTerrainTriangles.size()) + (zGridSize - 1) * 2 - 1) : -1,
-                                         (x < xGridSize - 2) ? static_cast<int>(mTerrainTriangles.size() + 1) : -1,
-                                         static_cast<int>(mTerrainTriangles.size()) - 1
-                                     }
-                                    });
-
-        std::cout << "Added a triangle with index: " << mTerrainTriangles.back().index[0] << ", " << mTerrainTriangles.back().index[1]
-                  << ", " << mTerrainTriangles.back().index[2] << " and neighbours: " << mTerrainTriangles.back().neighbour[0]
-                  << ", " << mTerrainTriangles.back().neighbour[1] << ", " << mTerrainTriangles.back().neighbour[2] << std::endl;
-    }
-}
-
-std::cout << "Triangle count: " << mTerrainTriangles.size() << std::endl;
-
-
-glGenVertexArrays(1, &mTerrainVAO);
-glBindVertexArray(mTerrainVAO);
-
-GLuint terrainVBO, terrainEBO;
-glGenBuffers(1, &terrainVBO);
-glBindBuffer(GL_ARRAY_BUFFER, terrainVBO);
-glBufferData(GL_ARRAY_BUFFER, mTerrainVertices.size() * sizeof(Vertex), mTerrainVertices.data(), GL_STATIC_DRAW);
-
-
-unsigned int *data = new unsigned int[mTerrainTriangles.size() * 3];
-for (unsigned int i{0}; i < mTerrainTriangles.size(); ++i)
-for (unsigned int j{0}; j < 3; ++j)
-data[i * 3 + j] = mTerrainTriangles.at(i).index[j];
-
-glGenBuffers(1, &terrainEBO);
-glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, terrainEBO);
-glBufferData(GL_ELEMENT_ARRAY_BUFFER, mTerrainTriangles.size() * 3 * sizeof(unsigned int), data, GL_STATIC_DRAW);
-
-delete[] data;
-
-glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)0);
-glEnableVertexAttribArray(0);
-glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)(3 * sizeof(GLfloat)));
-glEnableVertexAttribArray(1);
-glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)(6 * sizeof(GLfloat)));
-glEnableVertexAttribArray(2);
-
-glBindVertexArray(0);
-
-// glPointSize(10.f);
-}
 
 //******************************** Terrain *******************************************
 
