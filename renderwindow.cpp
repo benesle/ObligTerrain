@@ -18,6 +18,9 @@
 #include "octahedronball.h"
 
 #include "LAS/lasloader.h"
+#include "ballsimmulation.h"
+#include "physics.h"
+#include "vertex.h"
 
 RenderWindow::RenderWindow(const QSurfaceFormat &format, MainWindow *mainWindow)
     : mContext(nullptr), mInitialized(false), mMainWindow(mainWindow)
@@ -244,7 +247,7 @@ void RenderWindow::init()
     temp->init();
     temp->mMatrix.rotateY(180.f);
     mVisualObjects.push_back(temp);
-
+    mPhysics = new Physics();
     //    testing objmesh class - many of them!
     //    here we see the need for resource management!
     //    int x{0};
@@ -398,7 +401,15 @@ void RenderWindow::render()
     glBindVertexArray(mTerrainVAO);
     glDrawElements(GL_TRIANGLES, mTerrainTriangles.size()*3, GL_UNSIGNED_INT, 0);
 
+    gsl::Vector3D a;
+    gsl::Vector3D b;
+    gsl::Vector3D c;
 
+//    a= mTerrainVertices.at(mTerrainTriangles.at(5).index[0]).mXYZ;
+//    b= mTerrainVertices.at(mTerrainTriangles.at(3).index[1]).mXYZ;
+//    c= mTerrainVertices.at(mTerrainTriangles.at(5).index[2]).mXYZ;
+//    std::cout << "NORMAL: " << mPhysics->calcNormal(a,b,c) << std::endl;
+//    mPhysics->newtonSecondLaw();
 
     //Calculate framerate before
     // checkForGLerrors() because that takes a long time

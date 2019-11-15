@@ -32,11 +32,13 @@ SOURCES += \
         GSL/vector2d.cpp \
         GSL/vector3d.cpp \
         GSL/vector4d.cpp \
+        ballsimmulation.cpp \
         camera.cpp \
         input.cpp \
         main.cpp \
         mainwindow.cpp \
         octahedronball.cpp \
+        physics.cpp \
         renderwindow.cpp \
         shader.cpp \
         texture.cpp \
@@ -57,12 +59,14 @@ HEADERS += \
         GSL/vector3d.h \
         GSL/vector4d.h \
         LAS/lasloader.h \
+        ballsimmulation.h \
         camera.h \
         gltypes.h \
         innpch.h \
         input.h \
         mainwindow.h \
         octahedronball.h \
+        physics.h \
         renderwindow.h \
         shader.h \
         texture.h \

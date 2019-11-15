@@ -12,6 +12,7 @@
 #include "visualobject.h"
 #include "input.h"
 
+class Physics;
 class QOpenGLContext;
 class Shader;
 class MainWindow;
@@ -84,6 +85,7 @@ private:
     VisualObject *mPlayer;  //the controllable object
     Camera *mCurrentCamera{nullptr};
     Input mInput;
+    Physics* mPhysics;
 
     bool mWireframe{false};
     float mCameraSpeed{0.01f};
