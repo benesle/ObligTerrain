@@ -7,7 +7,7 @@
 
 namespace gsl
 {
-
+class Vector3D;
 class Vector2D
 {
 public:
@@ -38,6 +38,8 @@ public:
 
     GLfloat getY() const;
     void setY(const GLfloat &value);
+
+    Vector3D barycentricCoordinates(const Vector2D &p1, const Vector2D &p2, const Vector2D &p3 );
 
     //Friend functions
     friend std::ostream& operator<<(std::ostream &output, const Vector2D &rhs)

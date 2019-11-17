@@ -92,10 +92,38 @@ namespace gsl
 
         return normalized;
     }
+Vector3D Vector2D::barycentricCoordinates(const Vector2D &p1, const Vector2D &p2, const Vector2D &p3)
+{
+    Vector2D p12 = p2-p1; //x1
+    Vector2D p13 = p3-p1; //x2
 
+    Vector3D n = Vector3D(0,0,cross(p12,p13)); //arealet mellom p12 og p13
+    GLfloat areal_123 = n.z; //n.length();//dobbelt areal
+
+    Vector3D baryc; //til retur. husk
+    //u
+    Vector2D p = p2 - *this; //u1
+    Vector2D q = p3 - *this;//u2
+    n = Vector3D(0,0, cross(p,q));
+    baryc.x = n.z/areal_123;
+
+    //v
+    p = p3- *this; //v1
+    q = p1 - *this; //v2
+    n = Vector3D(0,0, cross(p,q));
+    baryc.y = n.z/areal_123;
+
+    //w
+    p = p1 - *this; //w1
+    q = p2 -*this; //w2
+    n = Vector3D(0,0, cross(p,q));
+    baryc.z = n.z/areal_123;
+   // std::cout << " baryryry: " << baryc << std::endl;
+    return baryc;
+}
     GLfloat Vector2D::cross(const Vector2D &v1, const Vector2D &v2)
     {
-        return std::abs((v1.getX() * v2.getY()) - (v1.getY() * v2.getX()));
+        return ((v1.getX() * v2.getY()) - (v1.getY() * v2.getX()));
     }
 
     GLfloat Vector2D::dot(const Vector2D  &v1, const Vector2D  &v2)

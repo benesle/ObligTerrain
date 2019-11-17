@@ -1,5 +1,6 @@
 #include "innpch.h"
 #include "visualobject.h"
+#include "physics.h"
 
 VisualObject::VisualObject()
 {
@@ -13,4 +14,19 @@ VisualObject::~VisualObject()
 
 void VisualObject::init()
 {
+}
+
+void VisualObject::move()
+{
+
+}
+
+void VisualObject::update()
+{
+
+}
+
+void VisualObject::setShader(Shader *shader)
+{
+ mMaterial.mShader = shader;
 }

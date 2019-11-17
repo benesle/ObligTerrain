@@ -37,6 +37,7 @@ SOURCES += \
         input.cpp \
         main.cpp \
         mainwindow.cpp \
+        material.cpp \
         octahedronball.cpp \
         physics.cpp \
         renderwindow.cpp \
@@ -65,6 +66,7 @@ HEADERS += \
         innpch.h \
         input.h \
         mainwindow.h \
+        material.h \
         octahedronball.h \
         physics.h \
         renderwindow.h \

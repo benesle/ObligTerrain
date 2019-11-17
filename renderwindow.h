@@ -42,6 +42,7 @@ public:
 
     static std::vector<gsl::Vector3D> mapToGrid(const std::vector<gsl::Vector3D> &points, int gridX, int gridY, gsl::Vector3D min, gsl::Vector3D max);
     static float length(const gsl::Vector3D &a, const gsl::Vector3D &b);
+    gsl::Vector3D barycentrigHeight;
 
     struct Triangle
     {
@@ -52,6 +53,11 @@ public:
         unsigned int index[3];
         int neighbour[3];
     };
+
+    void initPhysics(int EntityID);
+    Physics* mPhysics{nullptr};
+    void moveBall(float deltaTime);
+    Triangle* getBallToPlane(gsl::Vector3D ballPosition);
 
 private slots:
     void render();
@@ -85,7 +91,6 @@ private:
     VisualObject *mPlayer;  //the controllable object
     Camera *mCurrentCamera{nullptr};
     Input mInput;
-    Physics* mPhysics;
 
     bool mWireframe{false};
     float mCameraSpeed{0.01f};

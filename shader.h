@@ -3,6 +3,7 @@
 
 #include <QOpenGLFunctions_4_1_Core>
 #include "matrix4x4.h"
+#include "material.h"
 
 //#include "GL/glew.h" //We use QOpenGLFunctions instead, so no need for Glew (or GLAD)!
 
@@ -33,6 +34,7 @@ public:
 
     Camera *getCurrentCamera() const;
 
+    void transmitUniformData(gsl::Matrix4x4 *modelMatrix, class Material *material = nullptr);
 protected:
     GLuint program{0};
     GLint mMatrixUniform{-1};

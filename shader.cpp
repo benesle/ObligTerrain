@@ -4,6 +4,7 @@
 #include <sstream>
 #include <iostream>
 #include "matrix4x4.h"
+#include "camera.h"
 
 
 //#include "GL/glew.h" - using QOpenGLFunctions instead
@@ -159,4 +160,11 @@ void Shader::setCurrentCamera(Camera *currentCamera)
 Camera *Shader::getCurrentCamera() const
 {
     return mCurrentCamera;
+}
+
+void Shader::transmitUniformData(gsl::Matrix4x4 *modelMatrix, Material *material)
+{
+    glUniformMatrix4fv( vMatrixUniform, 1, GL_TRUE, mCurrentCamera->mViewMatrix.constData());
+    glUniformMatrix4fv( pMatrixUniform, 1, GL_TRUE, mCurrentCamera->mProjectionMatrix.constData());
+    glUniformMatrix4fv( mMatrixUniform, 1, GL_TRUE, modelMatrix->constData());
 }

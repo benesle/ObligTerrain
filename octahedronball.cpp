@@ -1,11 +1,12 @@
-#include "innpch.h"
 #include "octahedronball.h"
+#include "physics.h"
 
 OctahedronBall::OctahedronBall(GLint n) : mRecursions{n}, mIndex{0}
 {
     mNumberOfVertices = static_cast<GLuint>(3 * 8 * std::pow(4, mRecursions));
     mMatrix.setToIdentity();
     makeUnitOctahedron();
+    phys = new Physics;
 }
 
 OctahedronBall::~OctahedronBall()
@@ -63,6 +64,17 @@ void OctahedronBall::makeUnitOctahedron()
     subDivide(v5, v1, v4, mRecursions);
 }
 
+void OctahedronBall::move()
+{
+
+}
+
+void OctahedronBall::update()
+{
+    auto temp = mStartPosition +(phys->getAcceleration());
+    mMatrix.setPosition(temp.x, temp.y, temp.z);
+}
+
 //OctahedronBall::initVertexBufferObjects() calls glGenBuffers(), glBindBuffer() and glBufferdata()
 //  for using later use of glDrawArrays()
 void OctahedronBall::init()
@@ -95,8 +107,12 @@ void OctahedronBall::init()
 
 void OctahedronBall::draw()
 {
+    glUseProgram(mMaterial.mShader->getProgram());
+    glBindVertexArray( mVAO );
+    mMaterial.mShader->transmitUniformData(&mMatrix, &mMaterial);
     glBindVertexArray( mVAO );
     glDrawArrays(GL_TRIANGLES, 0, mVertices.size());//mVertices.size());
     glBindVertexArray(0);
+
 }
 

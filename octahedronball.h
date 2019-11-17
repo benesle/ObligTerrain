@@ -2,9 +2,9 @@
 #define OCTAHEDRONBALL_H
 
 #include "visualobject.h"
-#include "vector3d.h"
-#include "gltypes.h"
 
+class RenderWindow;
+class Physics;
 class Vertex;
 
 class OctahedronBall : public VisualObject {
@@ -14,6 +14,7 @@ public:
 
    virtual void init() override;
    virtual void draw() override;
+
 
    GLint getRecursions() const {return mRecursions;}
 
@@ -26,6 +27,8 @@ private:
    void makeTriangle(const gsl::Vector3D &v1, const gsl::Vector3D &v2, const gsl::Vector3D &v3);
    void subDivide(const gsl::Vector3D &a, const gsl::Vector3D &b, const gsl::Vector3D &c, GLint n);
    void makeUnitOctahedron();
+   virtual void move() override;
+   virtual void update() override;
 };
 
 #endif // OCTAHEDRONBALL_H

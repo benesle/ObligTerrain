@@ -1,4 +1,4 @@
-
+#include "innpch.h"
 #include "renderwindow.h"
 #include <QTimer>
 #include <QOpenGLContext>
@@ -18,7 +18,6 @@
 #include "octahedronball.h"
 
 #include "LAS/lasloader.h"
-#include "ballsimmulation.h"
 #include "physics.h"
 #include "vertex.h"
 
@@ -234,6 +233,27 @@ void RenderWindow::init()
     temp->init();
     mVisualObjects.push_back(temp);
 
+    mPhysics = new Physics();
+    temp = new OctahedronBall{3};
+    temp->init();
+    temp->mMatrix.setPosition(-15,30,5);
+    Triangle * triTemp = getBallToPlane(temp->mMatrix.getPosition());
+
+    if (triTemp != nullptr)
+    {
+        float height = temp->phys->calcHeight(barycentrigHeight,
+                                              mTerrainVertices.at(triTemp->index[0]).mXYZ,
+                mTerrainVertices.at(triTemp->index[1]).mXYZ,
+                mTerrainVertices.at(triTemp->index[2]).mXYZ);
+
+        temp->mMatrix.setPosition(-14, height,29);
+    }
+
+    //temp->phys->calcHeight(getBallToPlane()
+    temp->setShader(mShaderProgram[0]);
+    temp->mStartPosition = temp->mMatrix.getPosition();
+    mVisualObjects.push_back(temp);
+
     //    temp = new OctahedronBall(2);
     //    temp->init();
     //    temp->setShader(mShaderProgram[0]);
@@ -247,7 +267,7 @@ void RenderWindow::init()
     temp->init();
     temp->mMatrix.rotateY(180.f);
     mVisualObjects.push_back(temp);
-    mPhysics = new Physics();
+
     //    testing objmesh class - many of them!
     //    here we see the need for resource management!
     //    int x{0};
@@ -278,9 +298,9 @@ void RenderWindow::init()
 
     //********************** Set up camera **********************
     mCurrentCamera = new Camera();
-    mCurrentCamera->setPosition(gsl::Vector3D(1.f, 1.f, 4.4f));
-    //    mCurrentCamera->yaw(45.f);
-    //    mCurrentCamera->pitch(5.f);
+    mCurrentCamera->setPosition(gsl::Vector3D(45.f, 60.f, 10.f));
+    mCurrentCamera->yaw(-90.f);
+    mCurrentCamera->pitch(45.f);
 
     //new system - shader sends uniforms so needs to get the view and projection matrixes from camera
     mShaderProgram[0]->setCurrentCamera(mCurrentCamera);
@@ -352,9 +372,99 @@ std::vector<gsl::Vector3D> RenderWindow:: mapToGrid(const std::vector<gsl::Vecto
     return outputs;
 }
 
+void RenderWindow::moveBall(float deltaTime)
+{
+    //    gsl::Vector3D a;
+    //    gsl::Vector3D b;
+    //    gsl::Vector3D c;
+
+    //    a= mTerrainVertices.at(mTerrainTriangles.at(5).index[0]).mXYZ;
+    //    b= mTerrainVertices.at(mTerrainTriangles.at(3).index[1]).mXYZ;
+    //    c= mTerrainVertices.at(mTerrainTriangles.at(5).index[2]).mXYZ;
+    //    std::cout << "NORMAL: " << mPhysics->calcNormal(a,b,c) << std::endl;
+    //    mPhysics->newtonSecondLaw();
+
+    Triangle* vec3Ball = getBallToPlane(mVisualObjects[1]->mMatrix.getPosition());
+    auto& ball = *mVisualObjects[1];
+    if(vec3Ball != nullptr)
+    {
+        ball.phys->calcNormal(mTerrainVertices.at(vec3Ball->index[0]).mXYZ, mTerrainVertices.at(vec3Ball->index[1]).mXYZ, mTerrainVertices.at(vec3Ball->index[2]).mXYZ );
+        ball.phys->calcAplha();
+        ball.phys->newtonSecondLaw();
+        ball.phys->getAcceleration();
+
+        ball.mVelocity += ball.phys->getAcceleration() * deltaTime;
+        float height = ball.phys->calcHeight(barycentrigHeight,
+                                             mTerrainVertices.at(vec3Ball->index[0]).mXYZ,
+                mTerrainVertices.at(vec3Ball->index[1]).mXYZ,
+                mTerrainVertices.at(vec3Ball->index[2]).mXYZ);
+
+        ball.mMatrix.translate(ball.mVelocity.x, 0, ball.mVelocity.z);
+        ball.mMatrix.setPosition(ball.mMatrix.getPosition().x, height, ball.mMatrix.getPosition().z);
+        //    auto position = ball.mMatrix.getPosition() + ball.mVelocity * deltaTime;
+        //    position = ball.mMatrix.getPosition() + ball.mVelocity * deltaTime;
+        //    ball.mMatrix.setPosition(position.x, position.y, position.z);
+
+    }
+    std::cout << "Velocity: " << ball.mVelocity << "ACCELERATION: " << ball.phys->getAcceleration() << std::endl;
+}
+
+RenderWindow::Triangle *RenderWindow::getBallToPlane(gsl::Vector3D ballPosition)
+{
+
+    if(mTerrainTriangles.empty())
+        return nullptr;
+
+    unsigned int index = 0;
+    auto* t = &mTerrainTriangles.at(index);
+    std::array<gsl::Vector3D, 3> triangle;
+    for (unsigned int i{0}; i < 3; ++i)
+    {
+        triangle.at(i) = mTerrainVertices.at(t->index[i]).mXYZ;
+        triangle.at(i).y = 0.f;
+    }
+
+    gsl::Vector2D targetPos = gsl::Vector2D(ballPosition.x, ballPosition.z);
+    gsl::Vector3D bCoord = targetPos.barycentricCoordinates(gsl::Vector2D(triangle.at(0).x, triangle.at(0).z),
+                                                            gsl::Vector2D(triangle.at(1).x ,triangle.at(1).z),
+                                                            gsl::Vector2D(triangle.at(2).x, triangle.at(2).z));
+
+    unsigned int lastIndex = std::numeric_limits<unsigned int>::max();
+    while (!(0 <= bCoord.x && 0 <= bCoord.y && 0 <= bCoord.z))
+    {
+        unsigned int lowestIndex{0};
+        lowestIndex = (bCoord.y < bCoord.x) ? 1 : lowestIndex;
+        lowestIndex = (bCoord.z < bCoord.x) ? 2 : lowestIndex;
+
+        if (t->neighbour[lowestIndex] < 0)
+            return nullptr;
+
+        unsigned int nextIndex = t->neighbour[lowestIndex];
+        if (lastIndex == nextIndex)
+            return nullptr;
+
+        lastIndex = index;
+        index = nextIndex;
+
+        t = &mTerrainTriangles.at(index);
+        for (unsigned int i{0}; i < 3; ++i)
+        {
+            triangle.at(i) = mTerrainVertices.at(t->index[i]).mXYZ;
+            triangle.at(i).y = 0.f;
+        }
+
+        bCoord = targetPos.barycentricCoordinates(gsl::Vector2D(triangle.at(0).x, triangle.at(0).z), gsl::Vector2D(triangle.at(1).x ,triangle.at(1).z), gsl::Vector2D(triangle.at(2).x, triangle.at(2).z));
+    }
+    barycentrigHeight = bCoord;
+    return t;
+
+}
+
+
 ///Called each frame - doing the rendering
 void RenderWindow::render()
 {
+    const float deltaTime = mTimeStart.nsecsElapsed() / 1000000000.f;
     //calculate the time since last render-call
     //this should be the same as xxx in the mRenderTimer->start(xxx) set in RenderWindow::exposeEvent(...)
     //    auto now = std::chrono::high_resolution_clock::now();
@@ -365,6 +475,13 @@ void RenderWindow::render()
     //input
     handleInput();
     mCurrentCamera->update();
+    std::cout << "Camera POS: "
+              << "X: "<< mCurrentCamera->position().x
+              << "Y: "<< mCurrentCamera->position().y
+              << "Z: " << mCurrentCamera->position().z
+              << "YAW: " << mCurrentCamera->mYaw
+              << "PITCH: " << mCurrentCamera->mPitch
+              << std::endl;
 
     mTimeStart.restart(); //restart FPS clock
     mContext->makeCurrent(this); //must be called every frame (every time mContext->swapBuffers is called)
@@ -401,15 +518,20 @@ void RenderWindow::render()
     glBindVertexArray(mTerrainVAO);
     glDrawElements(GL_TRIANGLES, mTerrainTriangles.size()*3, GL_UNSIGNED_INT, 0);
 
-    gsl::Vector3D a;
-    gsl::Vector3D b;
-    gsl::Vector3D c;
 
-//    a= mTerrainVertices.at(mTerrainTriangles.at(5).index[0]).mXYZ;
-//    b= mTerrainVertices.at(mTerrainTriangles.at(3).index[1]).mXYZ;
-//    c= mTerrainVertices.at(mTerrainTriangles.at(5).index[2]).mXYZ;
-//    std::cout << "NORMAL: " << mPhysics->calcNormal(a,b,c) << std::endl;
-//    mPhysics->newtonSecondLaw();
+    moveBall(deltaTime);
+
+    //    gsl::Vector3D a;
+    //    gsl::Vector3D b;
+    //    gsl::Vector3D c;
+
+    //    a= mTerrainVertices.at(mTerrainTriangles.at(5).index[0]).mXYZ;
+    //    b= mTerrainVertices.at(mTerrainTriangles.at(3).index[1]).mXYZ;
+    //    c= mTerrainVertices.at(mTerrainTriangles.at(5).index[2]).mXYZ;
+    //    std::cout << "NORMAL: " << mPhysics->calcNormal(a,b,c) << std::endl;
+    //    mPhysics->newtonSecondLaw();
+
+    //mVisualObjects[1]->draw();
 
     //Calculate framerate before
     // checkForGLerrors() because that takes a long time
